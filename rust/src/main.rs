@@ -8,7 +8,7 @@ use crate::constants::Codec;
 fn main() {
     let filename = "../data/books/the_complete_works_of_william_shakespeare_by_william_shakespeare.txt".to_string();
     let words = reader::read_content(filename);
-    let delta_encoding = reader::generate_freq(words);
+    let delta_encoding = greader::generate_freq(words);
     let codec = Codec::BytePack;
     let _ = writer::write_postings(codec, delta_encoding);
 
