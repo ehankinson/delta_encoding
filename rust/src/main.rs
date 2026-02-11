@@ -3,7 +3,7 @@ mod reader;
 use std::time::Instant;
 
 fn main() {
-    let filename = "../data/books/moby_dick_or_the_whale_by_herman_melville.txt".to_string();
+    let filename = "../data/books/the_complete_works_of_william_shakespeare_by_william_shakespeare.txt".to_string();
     let words = reader::read_content(filename);
     let start_time = Instant::now();
     let duration = start_time.elapsed();
