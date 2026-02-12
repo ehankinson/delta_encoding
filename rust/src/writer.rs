@@ -1,9 +1,8 @@
-use std::fs::File;
 use crate::byte_packing;
+use crate::constants::{codec_to_bits, BytePosting, Codec};
 use std::collections::HashMap;
-use std::io::{Write, BufWriter, Result};
-use crate::constants::{Codec, BytePosting, codec_to_bits};
-
+use std::fs::File;
+use std::io::{BufWriter, Result, Write};
 
 // The header will be a u8 and hold data like this:
 // codec -> 2 bits
@@ -18,9 +17,12 @@ fn write_header(codec: &Codec, has_exception: bool, has_base: bool) -> u8 {
     header
 }
 
-
-
-fn write_posting<W: Write>(writer: &mut W, posting: &BytePosting, codec: &Codec, offset: &mut u32) -> Result<()> {
+fn write_posting<W: Write>(
+    writer: &mut W,
+    posting: &BytePosting,
+    codec: &Codec,
+    offset: &mut u32,
+) -> Result<()> {
     let has_exception = posting.exceptions.len() > 0;
     let header = write_header(codec, has_exception, posting.base > 0);
 
@@ -28,7 +30,7 @@ fn write_posting<W: Write>(writer: &mut W, posting: &BytePosting, codec: &Codec,
     writer.write_all(&posting.n.to_le_bytes())?;
     writer.write_all(&posting.base.to_le_bytes())?;
     writer.write_all(&(posting.payload.len() as u32).to_le_bytes())?;
-    
+
     for &value in posting.payload.iter() {
         writer.write_all(&value.to_le_bytes())?;
     }
@@ -42,24 +44,20 @@ fn write_posting<W: Write>(writer: &mut W, posting: &BytePosting, codec: &Codec,
         }
         *offset += 4 + posting.exceptions.len() as u32 * 2;
     }
-    
+
     writer.flush()?;
     Ok(())
 }
-
-
 
 fn write_dict<W: Write>(writer: &mut W, postings: &BytePosting, offset: &u32) -> Result<()> {
     let len = postings.word.len() as u8; // The length of the word
     writer.write_all(&len.to_le_bytes())?;
     writer.write_all(postings.word.as_bytes())?;
     writer.write_all(&offset.to_le_bytes())?;
-    
+
     writer.flush()?;
     Ok(())
 }
-
-
 
 pub fn write_postings(codec: Codec, word_freq: HashMap<String, Vec<i32>>) -> Result<()> {
     let postings: Vec<BytePosting> = byte_packing::byte_pack_encode(word_freq);

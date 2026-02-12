@@ -6,8 +6,6 @@ pub enum Codec {
     Hybrid,
 }
 
-
-
 pub fn codec_to_bits(codec: &Codec) -> u8 {
     match codec {
         Codec::None => 0b00,
@@ -17,12 +15,10 @@ pub fn codec_to_bits(codec: &Codec) -> u8 {
     }
 }
 
-
-
 pub struct BytePosting {
     pub word: String, // used for the dict.bin file
     pub n: u32,
     pub base: u32,
     pub payload: Vec<u8>,
-    pub exceptions: Vec<u16>
+    pub exceptions: Vec<u16>,
 }
