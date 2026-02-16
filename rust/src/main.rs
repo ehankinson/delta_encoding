@@ -1,5 +1,6 @@
 mod reader;
 mod writer;
+mod payload;
 mod constants;
 mod byte_packing;
 

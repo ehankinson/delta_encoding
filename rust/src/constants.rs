@@ -15,10 +15,10 @@ pub fn codec_to_bits(codec: &Codec) -> u8 {
     }
 }
 
-pub struct BytePosting {
+pub struct Posting<T> {
     pub word: String, // used for the dict.bin file
     pub n: u32,
     pub base: u32,
-    pub payload: Vec<u8>,
+    pub payload: Vec<T>,
     pub exceptions: Vec<u16>,
 }

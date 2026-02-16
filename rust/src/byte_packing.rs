@@ -1,8 +1,8 @@
-use crate::constants::BytePosting;
+use crate::constants::Posting;
 use std::collections::HashMap;
 
-pub fn byte_pack_encode(word_freq: HashMap<String, Vec<i32>>) -> Vec<BytePosting> {
-    let mut postings: Vec<BytePosting> = Vec::new();
+pub fn byte_pack_encode(word_freq: HashMap<String, Vec<i32>>) -> Vec<Posting<u8>> {
+    let mut postings: Vec<Posting<u8>> = Vec::new();
 
     for (word, freq) in word_freq.iter() {
         let mut payload: Vec<u8> = Vec::new();
@@ -17,7 +17,7 @@ pub fn byte_pack_encode(word_freq: HashMap<String, Vec<i32>>) -> Vec<BytePosting
             }
         }
 
-        postings.push(BytePosting {
+        postings.push(Posting {
             word: word.clone(),
             n: freq.len() as u32,
             base: freq[0] as u32,
