@@ -12,27 +12,24 @@ fn main() {
 
 
 
-    let start_time = std::time::Instant::now();
+    
     let byte_pack_codec = Codec::BytePack;
+    let start_time = std::time::Instant::now();
     let byte_pack_postings = byte_packing::byte_pack_encode(&words);
+    let end_time = std::time::Instant::now();
     let byte_pack_filename = "byte_pack".to_string();
     let _ = writer::write_postings(byte_pack_codec, byte_pack_postings, byte_pack_filename);
-    let end_time = std::time::Instant::now();
     let duration = end_time.duration_since(start_time);
     println!("Time for byte packing encoding took: {:?}", duration);
 
-    let start_time = std::time::Instant::now();
     let delta_encoding_codec = Codec::None;
+    let start_time = std::time::Instant::now();
     let delta_encoding_postings = delta_encoding::delta_encoding(&words);
+    let end_time = std::time::Instant::now();
     let delta_encoding_filename = "delta_encoding".to_string();
     let _ = writer::write_postings(delta_encoding_codec, delta_encoding_postings, delta_encoding_filename);
-    let end_time = std::time::Instant::now();
     let duration = end_time.duration_since(start_time);
     println!("Time for delta encoding encoding took: {:?}", duration);
-
-    let end_time = std::time::Instant::now();
-    let duration = end_time.duration_since(start_time);
-    println!("Time taken: {:?}", duration);
 
 
     let byte_pack_size = std::fs::metadata("byte_pack_postings.bin").unwrap().len();
