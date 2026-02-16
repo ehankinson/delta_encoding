@@ -1,7 +1,4 @@
-use crate::byte_packing;
-use crate::payload::PayloadElement;
-use crate::constants::{codec_to_bits, Posting, Codec};
-use std::collections::HashMap;
+use crate::constants::{codec_to_bits, Codec, Posting};
 use std::fs::File;
 use std::io::{BufWriter, Result, Write};
 
@@ -18,13 +15,13 @@ fn write_header(codec: &Codec, has_exception: bool, has_base: bool) -> u8 {
     header
 }
 
-fn write_posting<T: PayloadElement, W: Write>(
+fn write_posting<W: Write>(
     writer: &mut W,
-    posting: &Posting<T>,
+    posting: &Posting,
     codec: &Codec,
     offset: &mut u32,
 ) -> Result<()> {
-    let has_exception = posting.exceptions.len() > 0;
+    let has_exception = posting.exceptions.is_some();
     let header = write_header(codec, has_exception, posting.base > 0);
 
     writer.write_all(&header.to_le_bytes())?;
@@ -33,24 +30,26 @@ fn write_posting<T: PayloadElement, W: Write>(
     writer.write_all(&(posting.payload.len() as u32).to_le_bytes())?;
 
     for &value in posting.payload.iter() {
-        value.write_one(writer)?;
+        writer.write_all(&value.to_le_bytes())?;
     }
 
     *offset += 13 + posting.payload.len() as u32;
 
     if has_exception {
-        writer.write_all(&(posting.exceptions.len() as u32).to_le_bytes())?;
-        for &value in posting.exceptions.iter() {
+        let exceptions = posting.exceptions.as_ref().unwrap();
+        let excep_len = exceptions.len() as u32;
+        writer.write_all(&excep_len.to_le_bytes())?;
+        for &value in exceptions.iter() {
             writer.write_all(&value.to_le_bytes())?;
         }
-        *offset += 4 + posting.exceptions.len() as u32 * 2;
+        *offset += 4 + excep_len * 2;
     }
 
     writer.flush()?;
     Ok(())
 }
 
-fn write_dict<T, W: Write>(writer: &mut W, posting: &Posting<T>, offset: &u32) -> Result<()> {
+fn write_dict<W: Write>(writer: &mut W, posting: &Posting, offset: &u32) -> Result<()> {
     let len = posting.word.len() as u8; // The length of the word
     writer.write_all(&len.to_le_bytes())?;
     writer.write_all(posting.word.as_bytes())?;
@@ -60,11 +59,9 @@ fn write_dict<T, W: Write>(writer: &mut W, posting: &Posting<T>, offset: &u32) -
     Ok(())
 }
 
-pub fn write_postings(codec: Codec, word_freq: HashMap<String, Vec<i32>>) -> Result<()> {
-    let postings: Vec<Posting<u8>> = byte_packing::byte_pack_encode(word_freq);
-
-    let dict_file = File::create("dict.bin").unwrap();
-    let postings_file = File::create("postings.bin").unwrap();
+pub fn write_postings(codec: Codec, postings: Vec<Posting>, filename: String) -> Result<()> {
+    let dict_file = File::create(format!("{}_dict.bin", filename)).unwrap();
+    let postings_file = File::create(format!("{}_postings.bin", filename)).unwrap();
 
     let mut dict_writer = BufWriter::new(dict_file);
     let mut postings_writer = BufWriter::new(postings_file);

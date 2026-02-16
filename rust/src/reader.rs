@@ -2,12 +2,12 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Result};
 
-pub fn read_content(filename: String) -> Result<HashMap<String, Vec<i32>>> {
+pub fn read_content(filename: String) -> Result<HashMap<String, Vec<u32>>> {
     let file = File::open(filename)?;
     let reader = BufReader::new(file);
 
     let mut index = 0;
-    let mut delta_encoding: HashMap<String, Vec<i32>> = HashMap::new();
+    let mut delta_encoding: HashMap<String, Vec<u32>> = HashMap::new();
 
     for lines in reader.lines() {
         let line = lines?;
@@ -25,7 +25,7 @@ pub fn read_content(filename: String) -> Result<HashMap<String, Vec<i32>>> {
             delta_encoding
                 .entry(clean_word)
                 .or_default()
-                .push(index as i32);
+                .push(index as u32);
 
             index += 1;
         }
@@ -34,10 +34,10 @@ pub fn read_content(filename: String) -> Result<HashMap<String, Vec<i32>>> {
     Ok(delta_encoding)
 }
 
-pub fn encode_deltas(map: &mut HashMap<String, Vec<i32>>) {
+pub fn encode_deltas(map: &mut HashMap<String, Vec<u32>>) {
     for indices in map.values_mut() {
         for i in (1..indices.len()).rev() {
-            indices[i] = indices[i] - indices[i - 1];
+            indices[i] = indices[i] - indices[i - 1] as u32;
         }
     }
 }
