@@ -6,14 +6,15 @@ pub fn byte_pack_encode(word_freq: &HashMap<String, Vec<u32>>) -> Vec<Posting> {
 
     for (word, freq) in word_freq.iter() {
         let mut payload: Vec<u8> = Vec::new();
-        let mut exceptions: Vec<u16> = Vec::new();
+        let mut exceptions: Vec<u8> = Vec::new();
 
         for &value in freq.iter().skip(1) {
             if value <= 255 {
                 payload.push(value as u8);
             } else {
                 payload.push(0);
-                exceptions.push(value as u16);
+                exceptions.push((value & 0xFF) as u8);
+                exceptions.push(((value >> 8) & 0xFF) as u8);
             }
         }
 

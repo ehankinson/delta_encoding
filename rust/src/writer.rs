@@ -21,6 +21,7 @@ fn write_posting<W: Write>(
     codec: &Codec,
     offset: &mut u32,
 ) -> Result<()> {
+    let exceptions = posting.exceptions.as_deref().filter(|ex| !ex.is_empty());
     let has_exception = posting.exceptions.is_some();
     let header = write_header(codec, has_exception, posting.base > 0);
 
@@ -28,24 +29,17 @@ fn write_posting<W: Write>(
     writer.write_all(&posting.n.to_le_bytes())?;
     writer.write_all(&posting.base.to_le_bytes())?;
     writer.write_all(&(posting.payload.len() as u32).to_le_bytes())?;
-
-    for &value in posting.payload.iter() {
-        writer.write_all(&value.to_le_bytes())?;
-    }
+    writer.write_all(&posting.payload)?;
 
     *offset += 13 + posting.payload.len() as u32;
 
-    if has_exception {
-        let exceptions = posting.exceptions.as_ref().unwrap();
+    if let Some(exceptions) = exceptions {
         let excep_len = exceptions.len() as u32;
         writer.write_all(&excep_len.to_le_bytes())?;
-        for &value in exceptions.iter() {
-            writer.write_all(&value.to_le_bytes())?;
-        }
-        *offset += 4 + excep_len * 2;
+        writer.write_all(exceptions)?;
+        *offset += 4 + excep_len * 2
     }
 
-    writer.flush()?;
     Ok(())
 }
 
@@ -55,7 +49,6 @@ fn write_dict<W: Write>(writer: &mut W, posting: &Posting, offset: &u32) -> Resu
     writer.write_all(posting.word.as_bytes())?;
     writer.write_all(&offset.to_le_bytes())?;
 
-    writer.flush()?;
     Ok(())
 }
 
@@ -71,6 +64,8 @@ pub fn write_postings(codec: Codec, postings: Vec<Posting>, filename: String) ->
         write_posting(&mut postings_writer, posting, &codec, &mut offset)?;
         write_dict(&mut dict_writer, posting, &offset)?;
     }
+    dict_writer.flush()?;
+    postings_writer.flush()?;
 
     Ok(())
 }
