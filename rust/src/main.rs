@@ -3,7 +3,7 @@ mod writer;
 mod constants;
 mod byte_packing;
 mod delta_encoding;
-
+mod varint;
 use crate::constants::Codec;
 
 fn main() {
@@ -28,10 +28,21 @@ fn main() {
     let duration = end_time.duration_since(start_time);
     println!("Time for delta encoding encoding took: {:?}", duration);
 
+    let varint_encoding_codec = Codec::VarInt;
+    let start_time = std::time::Instant::now();
+    let varint_encoding_postings = varint::varint_encode(&words);
+    let varint_encoding_filename = "varint_encoding".to_string();
+    let _ = writer::write_postings(varint_encoding_codec, varint_encoding_postings, varint_encoding_filename);
+    let end_time = std::time::Instant::now();
+    let duration = end_time.duration_since(start_time);
+    println!("Time for varint encoding took: {:?}", duration);
+    
     let byte_pack_size = std::fs::metadata("byte_pack_postings.bin").unwrap().len();
     let delta_encoding_size = std::fs::metadata("delta_encoding_postings.bin").unwrap().len();
+    let varint_encoding_size = std::fs::metadata("varint_encoding_postings.bin").unwrap().len();
     println!("Byte pack size: {:?}", byte_pack_size);
     println!("Delta encoding size: {:?}", delta_encoding_size);
     println!("The compression ratio is: {:?}", delta_encoding_size as f64 / byte_pack_size as f64);
+    println!("The compression ratio for varint is: {:?}", delta_encoding_size as f64 / varint_encoding_size as f64);
 
 }
