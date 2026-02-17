@@ -2,8 +2,8 @@ import os
 
 
 CWD = os.path.dirname(os.path.abspath(__file__))
-HUMAN_FASTA_FILE = os.path.join(CWD, "..", "data", "chroms", "human.fasta")
-HUMAN_CLEANED_TEXT_FILE = os.path.join(CWD, "..", "data", "chroms", "human_cleaned.txt")
+HUMAN_FASTA_FILE = os.path.join(CWD, "..", "data", "dna", "human.fasta")
+HUMAN_CLEANED_TEXT_FILE = os.path.join(CWD, "..", "data", "dna", "human_cleaned.txt")
 
 
 def create_reference_text(read_file: str, write_file: str):

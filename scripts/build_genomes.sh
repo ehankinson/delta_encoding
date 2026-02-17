@@ -16,7 +16,7 @@ echo "Running from repo root: $REPO_ROOT"
 # Ensure data/dna folder exists
 ############################################
 mkdir -p data/dna
-mkdir -p tmp/chroms
+mkdir -p tmp
 
 ############################################
 # 1. Download genome if missing
@@ -34,9 +34,9 @@ fi
 ############################################
 # 2. Extract chromosome FASTA files
 ############################################
-if [ -z "$(ls -A tmp/chroms 2>/dev/null)" ]; then
+if [ ! -d "tmp/chroms" ]; then
     echo "Extracting genome..."
-    tar -xzf "$TAR_FILE" -C tmp/chroms
+    tar -xzf "$TAR_FILE" -C tmp
 else
     echo "Chromosome files already extracted"
 fi
@@ -54,17 +54,17 @@ fi
 ############################################
 # 4. Clean to single DNA string
 ############################################
-if [ ! -f "data/dna/human_reference.txt" ]; then
-    echo "Cleaning FASTA -> single string..."
-    grep -v '^>' data/dna/human.fasta | tr -d '\n' | tr '[:lower:]' '[:upper:]' > data/dna/human_reference.txt
+if [ ! -f "data/dna/human_cleaned.txt" ]; then
+    echo "Cleaning FASTA -> single DNA string..."
+    python3 scripts/dna_cleaner.py
 else
-    echo "human_reference.txt already exists"
+    echo "human_cleaned.txt already exists"
 fi
 
 ############################################
 # 5. Generate mutated genomes
 ############################################
 echo "Running mutation generator..."
-python3 scripts/mutate_genomes.py
+python3 scripts/mutate_dna.py
 
 echo "=== DONE ==="
