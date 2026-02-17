@@ -7,7 +7,7 @@ mod varint;
 use crate::constants::Codec;
 
 fn main() {
-    let filename = "../data/books/moby_multiple_language_lists_of_common_words_by_grady_ward.txt".to_string();
+    let filename = "../data/books/the_complete_works_of_william_shakespeare_by_william_shakespeare.txt".to_string();
     let words = reader::read_content(filename).expect("failed to read input file");
 
     let byte_pack_codec = Codec::BytePack;
