@@ -44,10 +44,11 @@ fn benchmark(encoder: Codec, word_freq: &HashMap<String, Vec<u32>> ) -> u64{
     };
     let end_time = std::time::Instant::now();
     let duration = end_time.duration_since(start_time);
-    println!("--------------");
-    println!("Time for {:?} encoding took: {:?}", filename, duration);
+    println!("{}", "-".repeat(54));
+    println!("Time for {:?} encoding took: {:#?}", filename, duration);
     let size  =  std::fs::metadata(path).unwrap().len();
     println!("{:?} has size {:.2}mb", filename, (size as f64 / (1024.0 * 1024.0)) );
-    println!("--------------");
+     println!("{}", "-".repeat(54));
+    println!();
     size
 }
