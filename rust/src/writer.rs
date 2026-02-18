@@ -52,7 +52,7 @@ fn write_dict<W: Write>(writer: &mut W, posting: &Posting, offset: &u32) -> Resu
     Ok(())
 }
 
-pub fn write_postings(codec: Codec, postings: Vec<Posting>, filename: String) -> Result<()> {
+pub fn write_postings(codec: Codec, postings: Vec<Posting>, filename: &String) -> Result<()> {
     let dict_file = File::create(format!("{}_dict.bin", filename)).unwrap();
     let postings_file = File::create(format!("{}_postings.bin", filename)).unwrap();
 
