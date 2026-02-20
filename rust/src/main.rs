@@ -8,9 +8,9 @@ use std::collections::HashMap;
 use crate::{constants::Codec};
 
 fn main() {
-    let filename = "../data/books/the_complete_works_of_william_shakespeare_by_william_shakespeare.txt".to_string();
+    let filename = "../data/dna/human_cleaned.txt".to_string();
     // let words = reader::read_book_content(filename).expect("failed to read input file");
-    let words = reader::read_dna_content(filename, 3).expect("failed to read input file");
+    let words = reader::read_dna_content(filename, 5).expect("failed to read input file");
     let byte_pack_size = benchmark(Codec::BytePack, &words);
     let delta_encoding_size = benchmark(Codec::None, &words);
     let varint_encoding_size = benchmark(Codec::VarInt, &words);
@@ -49,7 +49,7 @@ fn benchmark(encoder: Codec, word_freq: &HashMap<String, Vec<u32>> ) -> u64{
     println!("Time for {:?} encoding took: {:#?}", filename, duration);
     let size  =  std::fs::metadata(path).unwrap().len();
     println!("{:?} has size {:.2}mb", filename, (size as f64 / (1024.0 * 1024.0)) );
-     println!("{}", "-".repeat(54));
+    println!("{}", "-".repeat(54));
     println!();
     size
 }
