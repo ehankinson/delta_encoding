@@ -7,7 +7,8 @@ mod varint;
 
 use std::thread;
 use std::sync::{Arc, mpsc};
-use std::collections::HashMap;
+// use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use crate::{constants::Codec, constants::Posting};
 
 fn main() {
@@ -29,7 +30,7 @@ fn main() {
 }
 
 
-fn benchmark(encoder: Codec, word_freq: Arc<HashMap<u32, Vec<u32>>>) -> u64{
+fn benchmark(encoder: Codec, word_freq: Arc<FxHashMap<u32, Vec<u32>>>) -> u64{
     let total_start = std::time::Instant::now();
     //Could do it all in one match, but i dont want string creation part of the bench marking
     let (filename, path) = match encoder {

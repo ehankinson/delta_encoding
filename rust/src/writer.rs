@@ -33,15 +33,8 @@ pub fn writer(filename: &String, receiver: &Receiver<Vec<u8>>) -> Result<()> {
     // let mut dict_writer = BufWriter::new(dict_file);
     let mut postings_writer = BufWriter::new(postings_file);
 
-    let mut count = 0;
-
     for chunk in receiver.iter() {
         postings_writer.write_all(&chunk)?;
-        count += 1;
-
-        if count % 4 == 0 {
-            postings_writer.flush()?;
-        }
     }
 
     postings_writer.flush()?;

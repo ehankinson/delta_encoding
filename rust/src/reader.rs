@@ -1,8 +1,9 @@
-use std::collections::HashMap;
+// use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read, Result};
 
-const DNA_BASES: u8 = 5;
+const DNA_BASES: u32 = 5;
 
 // pub fn read_book_content(filename: String) -> Result<HashMap<String, Vec<u32>>> {
 //     let file = File::open(filename)?;
@@ -36,13 +37,19 @@ const DNA_BASES: u8 = 5;
 //     Ok(delta_encoding)
 // }
 
-pub fn read_dna_content(filename: String, k: u8) -> Result<HashMap<u32, Vec<u32>>> {
+pub fn read_dna_content(filename: String, k: u32) -> Result<FxHashMap<u32, Vec<u32>>> {
     let file = File::open(filename)?;
     let mut reader = BufReader::new(file);
-    let mut mapping: HashMap<u32, Vec<u32>> = HashMap::new();
+    let mut map: FxHashMap<u32, Vec<u32>> = FxHashMap::default();
 
+    let mut kmer = 0 as u32;
+    let mut built = 0 as u32;
     let mut index = 0 as u32;
-    let mut buf = vec![0u8; 1024 * 1024];
+
+    let mut buf = vec![0u8; 16 * 1024 * 1024];
+
+    let power_table = build_power_cache(DNA_BASES, k);
+    let highest_power = power_table.last().unwrap();
 
     loop {
         let n = reader.read(&mut buf)?;
@@ -50,39 +57,29 @@ pub fn read_dna_content(filename: String, k: u8) -> Result<HashMap<u32, Vec<u32>
             break;
         }
 
-        process_chunk(&mut mapping, &buf, k, &mut index);
-    }
+        for &byte in &buf[..n] {
+            let digit = get_digit(byte);
 
-    encode_deltas(&mut mapping);
-    Ok(mapping)
-}
-
-fn process_chunk(map: &mut HashMap<u32, Vec<u32>>, buf: &[u8], k: u8, index: &mut u32) {
-    if buf.len() < k as usize {
-        return;
-    }
-
-    let mut kmer = 0 as u32;
-    let power_table = build_power_cache(DNA_BASES, k);
-    for i in 0..buf.len() - k as usize {
-        let slice = &buf[i..i + k as usize];
-        if i == 0 {
-            for (j, &digit) in slice.iter().enumerate() {
-                let index = (k as usize) - (j as usize) - 1;
-                kmer += get_digit(digit) as u32 * power_table[index];
+            if built < k {
+                kmer = kmer * DNA_BASES + digit;
+                built += 1;
+            } else {
+                let left_digit = kmer / highest_power;
+                kmer = (kmer - left_digit * highest_power) * DNA_BASES+ digit;
             }
-        } else {
-            let left_digit = get_digit(buf[i - 1]);
-            let new_digit = get_digit(buf[i + k as usize - 1]);
-            let last_power = power_table.last().unwrap();
-            kmer = (kmer - left_digit * last_power) * DNA_BASES as u32 + new_digit;
+
+            map.entry(kmer)
+                .or_insert_with(|| Vec::with_capacity(4))
+                .push(index);
+            index += 1;
         }
-        map.entry(kmer).or_default().push(*index);
-        *index += 1;
     }
+
+    encode_deltas(&mut map);
+    Ok(map)
 }
 
-fn encode_deltas(map: &mut HashMap<u32, Vec<u32>>) {
+fn encode_deltas(map: &mut FxHashMap<u32, Vec<u32>>) {
     for indices in map.values_mut() {
         for i in (1..indices.len()).rev() {
             indices[i] = indices[i] - indices[i - 1] as u32;
@@ -90,11 +87,11 @@ fn encode_deltas(map: &mut HashMap<u32, Vec<u32>>) {
     }
 }
 
-fn build_power_cache(length: u8, k: u8) -> Vec<u32> {
-    let mut power_table = Vec::with_capacity(length as usize);
+fn build_power_cache(base: u32, k: u32) -> Vec<u32> {
+    let mut power_table = Vec::with_capacity(k as usize);
     power_table.push(1);
-    for i in 1..length as usize {
-        power_table.push(power_table[i - 1] * DNA_BASES as u32);
+    for i in 1..k as usize {
+        power_table.push(power_table[i - 1] * base);
     }
 
     power_table
