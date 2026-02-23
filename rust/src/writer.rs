@@ -2,6 +2,8 @@ use crate::constants::{codec_to_bits, Codec, Posting};
 use std::fs::File;
 use std::io::{BufWriter, Result, Write};
 
+const FLUSH_THRESHOLD_BYTES: usize = 1024 * 1024;
+
 // The header will be a u8 and hold data like this:
 // codec -> 2 bits
 // has_exception -> 1 bit (needed for bytepacking)
@@ -60,10 +62,23 @@ pub fn write_postings(codec: Codec, postings: Vec<Posting>, filename: &String) -
     let mut postings_writer = BufWriter::new(postings_file);
 
     let mut offset: u32 = 0;
-    for posting in postings.iter() {
-        write_posting(&mut postings_writer, posting, &codec, &mut offset)?;
-        write_dict(&mut dict_writer, posting, &offset)?;
+    let mut pending_bytes: usize = 0;
+
+    for posting in postings.into_iter() {
+        let before_offset = offset;
+        write_posting(&mut postings_writer, &posting, &codec, &mut offset)?;
+        write_dict(&mut dict_writer, &posting, &offset)?;
+
+        pending_bytes += (offset - before_offset) as usize;
+        pending_bytes += 1 + posting.word.len() + 4;
+
+        if pending_bytes >= FLUSH_THRESHOLD_BYTES {
+            postings_writer.flush()?;
+            dict_writer.flush()?;
+            pending_bytes = 0;
+        }
     }
+
     dict_writer.flush()?;
     postings_writer.flush()?;
 

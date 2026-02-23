@@ -2,6 +2,8 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read, Result};
 
+const DNA_BASES: u8 = 5;
+
 pub fn read_book_content(filename: String) -> Result<HashMap<String, Vec<u32>>> {
     let file = File::open(filename)?;
     let reader = BufReader::new(file);
@@ -42,10 +44,10 @@ pub fn encode_deltas(map: &mut HashMap<String, Vec<u32>>) {
     }
 }
 
-pub fn read_dna_content(filename: String, k: usize) -> Result<HashMap<String, Vec<u32>>> {
+pub fn read_dna_content(filename: String, k: u8) -> Result<HashMap<String, Vec<u32>>> {
     let file = File::open(filename)?;
     let mut reader = BufReader::new(file);
-    let mut delta_encoding: HashMap<String, Vec<u32>> = HashMap::new();
+    let mut mapping: HashMap<u32, Vec<u32>> = HashMap::new();
 
     let mut index = 0 as u32;
     let mut buf = vec![0u8; 1024 * 1024];
@@ -56,22 +58,73 @@ pub fn read_dna_content(filename: String, k: usize) -> Result<HashMap<String, Ve
             break;
         }
 
-        process_chunk(&mut delta_encoding, &buf, k, &mut index);
+        process_chunk(&mut mapping, &buf, k, &mut index);
+    }
+
+    let mut delta_encoding: HashMap<String, Vec<u32>> = HashMap::new();
+    for (mut kmer, indices) in mapping.drain() {
+        let mut kmer_string = String::new();
+        while kmer > 0 {
+            kmer_string.push(match kmer % 5 {
+                0 => 'A',
+                1 => 'C',
+                2 => 'G',
+                3 => 'T',
+                4 => 'N',
+                _ => '_',
+            });
+            kmer /= 5;
+        }
+
+        delta_encoding.insert(kmer_string, indices);
     }
 
     encode_deltas(&mut delta_encoding);
     Ok(delta_encoding)
 }
 
-fn process_chunk(map: &mut HashMap<String, Vec<u32>>, buf: &[u8], k: usize, index: &mut u32) {
-    if buf.len() < k {
+fn process_chunk(map: &mut HashMap<u32, Vec<u32>>, buf: &[u8], k: u8, index: &mut u32) {
+    if buf.len() < k as usize {
         return;
     }
 
-    for i in 0..buf.len() - k {
-        let slice = &buf[i..i + k];
-        let kmer: String = slice.iter().map(|&c| c as char).collect();
+    let mut kmer = 0 as u32;
+    let power_table = build_power_cache(DNA_BASES, k);
+    for i in 0..buf.len() - k as usize {
+        let slice = &buf[i..i + k as usize];
+        if i == 0 {
+            for (j, &digit) in slice.iter().enumerate() {
+                let index = (k as usize) - (j as usize) - 1;
+                kmer += get_digit(digit) as u32 * power_table[index];
+            }
+        } else {
+            let left_digit = get_digit(buf[i - 1]);
+            let new_digit = get_digit(buf[i + k as usize - 1]);
+            let last_power = power_table.last().unwrap();
+            kmer = (kmer - left_digit * last_power) * DNA_BASES as u32 + new_digit;
+        }
         map.entry(kmer).or_default().push(*index);
         *index += 1;
+    }
+}
+
+fn build_power_cache(length: u8, k: u8) -> Vec<u32> {
+    let mut power_table = Vec::with_capacity(length as usize);
+    power_table.push(1);
+    for i in 1..length as usize {
+        power_table.push(power_table[i - 1] * DNA_BASES as u32);
+    }
+
+    power_table
+}
+
+fn get_digit(byte: u8) -> u32 {
+    match byte {
+        b'A' => 0,
+        b'C' => 1,
+        b'G' => 2,
+        b'T' => 3,
+        b'N' => 4,
+        _ => 0,
     }
 }

@@ -10,7 +10,11 @@ use crate::{constants::Codec};
 fn main() {
     let filename = "../data/dna/human_cleaned.txt".to_string();
     // let words = reader::read_book_content(filename).expect("failed to read input file");
+    let start_time = std::time::Instant::now();
     let words = reader::read_dna_content(filename, 5).expect("failed to read input file");
+    let end_time = std::time::Instant::now();
+    let duration = end_time.duration_since(start_time);
+    println!("Time for reading the file took: {:#?}", duration);
     let byte_pack_size = benchmark(Codec::BytePack, &words);
     let delta_encoding_size = benchmark(Codec::None, &words);
     let varint_encoding_size = benchmark(Codec::VarInt, &words);
