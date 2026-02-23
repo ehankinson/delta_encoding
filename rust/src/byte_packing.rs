@@ -1,7 +1,18 @@
-use crate::constants::Posting;
-use std::collections::HashMap;
+use crate::constants::{Codec, Posting};
+use crate::writer::write_header;
 
-pub fn byte_pack_encode(word_freq: &HashMap<u32, Vec<u32>>) -> Posting {
+use std::collections::HashMap;
+use std::sync::mpsc::SyncSender;
+use std::sync::Arc;
+
+pub fn byte_pack_encode(
+    codec: &Codec,
+    sender: &SyncSender<Vec<u8>>,
+    word_freq: Arc<HashMap<u32, Vec<u32>>>,
+) {
+    let size = 8 * 1024 * 1024; // 8MB buffer
+    let mut buffer = Vec::new();
+
     for (word, freq) in word_freq.iter() {
         let tail_len = freq.len().saturating_sub(1);
         let mut payload: Vec<u8> = Vec::with_capacity(tail_len);
@@ -17,13 +28,21 @@ pub fn byte_pack_encode(word_freq: &HashMap<u32, Vec<u32>>) -> Posting {
                 ex.push(((value >> 8) & 0xFF) as u8);
             }
         }
-    }
 
-    return Posting {
-        word: "",
-        n: freq.len() as u32,
-        base: freq[0] as u32,
-        payload: payload,
-        exceptions,
-    };
+        let header = write_header(codec, exceptions.is_some(), freq.len() > 0);
+        buffer.push(header);
+        buffer.extend_from_slice(&freq.len().to_le_bytes());
+        buffer.extend_from_slice(&freq[0].to_le_bytes());
+        buffer.extend_from_slice(&payload.len().to_le_bytes());
+        buffer.extend_from_slice(&payload);
+        if let Some(exceptions) = exceptions {
+            buffer.extend_from_slice(&exceptions.len().to_le_bytes());
+            buffer.extend_from_slice(&exceptions);
+        }
+
+        if buffer.len() >= size {
+            sender.send(buffer).unwrap();
+            buffer = Vec::new();
+        }
+    }
 }
