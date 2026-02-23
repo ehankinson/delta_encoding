@@ -4,8 +4,11 @@ mod constants;
 mod byte_packing;
 mod delta_encoding;
 mod varint;
+
+use std::thread;
+use std::sync::mpsc;
 use std::collections::HashMap;
-use crate::{constants::Codec};
+use crate::{constants::Codec, constants::Posting};
 
 fn main() {
     let filename = "../data/dna/human_cleaned.txt".to_string();
@@ -14,6 +17,11 @@ fn main() {
     let words = reader::read_dna_content(filename, 5).expect("failed to read input file");
     let end_time = std::time::Instant::now();
     let duration = end_time.duration_since(start_time);
+
+    let (chunk_generator, chunk_writer) = mpsc::sync_channel::<Posting>(8);
+
+
+
     println!("Time for reading the file took: {:#?}", duration);
     let byte_pack_size = benchmark(Codec::BytePack, &words);
     let delta_encoding_size = benchmark(Codec::None, &words);
@@ -36,16 +44,16 @@ fn benchmark(encoder: Codec, word_freq: &HashMap<String, Vec<u32>> ) -> u64{
     let start_time = std::time::Instant::now();
     let _ = match encoder {
         Codec::None => 
-            writer::write_postings(encoder, delta_encoding::delta_encoding(word_freq), &filename),
+            writer::writer(encoder, delta_encoding::delta_encoding(word_freq), &filename),
 
         Codec::VarInt => 
-            writer::write_postings(encoder, varint::varint_encode(word_freq), &filename),
+            writer::writer(encoder, varint::varint_encode(word_freq), &filename),
 
         Codec::BytePack => 
-            writer::write_postings(encoder, byte_packing::byte_pack_encode(word_freq), &filename),
+            writer::writer(encoder, byte_packing::byte_pack_encode(word_freq), &filename),
 
         Codec::Hybrid => //defaulting to delta encode :p
-            writer::write_postings(encoder, delta_encoding::delta_encoding(word_freq), &filename),
+            writer::writer(encoder, delta_encoding::delta_encoding(word_freq), &filename),
     };
     let end_time = std::time::Instant::now();
     let duration = end_time.duration_since(start_time);

@@ -36,15 +36,7 @@ pub fn read_book_content(filename: String) -> Result<HashMap<String, Vec<u32>>> 
     Ok(delta_encoding)
 }
 
-pub fn encode_deltas(map: &mut HashMap<String, Vec<u32>>) {
-    for indices in map.values_mut() {
-        for i in (1..indices.len()).rev() {
-            indices[i] = indices[i] - indices[i - 1] as u32;
-        }
-    }
-}
-
-pub fn read_dna_content(filename: String, k: u8) -> Result<HashMap<String, Vec<u32>>> {
+pub fn read_dna_content(filename: String, k: u8) -> Result<HashMap<u32, Vec<u32>>> {
     let file = File::open(filename)?;
     let mut reader = BufReader::new(file);
     let mut mapping: HashMap<u32, Vec<u32>> = HashMap::new();
@@ -61,26 +53,8 @@ pub fn read_dna_content(filename: String, k: u8) -> Result<HashMap<String, Vec<u
         process_chunk(&mut mapping, &buf, k, &mut index);
     }
 
-    let mut delta_encoding: HashMap<String, Vec<u32>> = HashMap::new();
-    for (mut kmer, indices) in mapping.drain() {
-        let mut kmer_string = String::new();
-        while kmer > 0 {
-            kmer_string.push(match kmer % 5 {
-                0 => 'A',
-                1 => 'C',
-                2 => 'G',
-                3 => 'T',
-                4 => 'N',
-                _ => '_',
-            });
-            kmer /= 5;
-        }
-
-        delta_encoding.insert(kmer_string, indices);
-    }
-
-    encode_deltas(&mut delta_encoding);
-    Ok(delta_encoding)
+    encode_deltas(&mut mapping);
+    Ok(mapping)
 }
 
 fn process_chunk(map: &mut HashMap<u32, Vec<u32>>, buf: &[u8], k: u8, index: &mut u32) {
@@ -105,6 +79,14 @@ fn process_chunk(map: &mut HashMap<u32, Vec<u32>>, buf: &[u8], k: u8, index: &mu
         }
         map.entry(kmer).or_default().push(*index);
         *index += 1;
+    }
+}
+
+fn encode_deltas(map: &mut HashMap<u32, Vec<u32>>) {
+    for indices in map.values_mut() {
+        for i in (1..indices.len()).rev() {
+            indices[i] = indices[i] - indices[i - 1] as u32;
+        }
     }
 }
 
