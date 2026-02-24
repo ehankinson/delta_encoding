@@ -80,12 +80,18 @@ fn byte_pack_encode(freq: &Vec<u32>,byte_data: &mut Vec<u8>, exceptions: &mut Ve
         if value <= 255 {
             byte_data.push(value as u8);
         } else {
-            if value > u16::MAX as u32 {
-                panic!("byte_pack exception overflow: {} does not fit in u16", value);
-            }
             byte_data.push(0);
-            exceptions.push((value & 0xFF) as u8);
-            exceptions.push(((value >> 8) & 0xFF) as u8);
+            if value <= u16::MAX as u32 {
+                let v = value as u16;
+                exceptions.extend_from_slice(&v.to_le_bytes());
+            }
+            // with DNA there are indexs that are over a u16 size, so I've added a 
+            // new sentinal value in the exceptions (0x0000) to indicate hey, read the next 4 bytes (u32)
+            // since it's so large, otherwise we continue with the next 2 bytes (u16)
+            else {
+                exceptions.extend_from_slice(&(0 as u16).to_le_bytes());
+                exceptions.extend_from_slice(&value.to_le_bytes());
+            }
         }
     }
 }
