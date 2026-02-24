@@ -1,9 +1,7 @@
-// use std::collections::HashMap;
-use rustc_hash::FxHashMap;
+use crate::constants::DNA_BASES;
 use std::fs::File;
-use std::io::{BufRead, BufReader, Read, Result};
-
-const DNA_BASES: u32 = 5;
+use std::io::{BufReader, Read, Result};
+use rustc_hash::FxHashMap;
 
 // pub fn read_book_content(filename: String) -> Result<HashMap<String, Vec<u32>>> {
 //     let file = File::open(filename)?;

@@ -4,12 +4,12 @@ mod constants;
 mod byte_packing;
 mod delta_encoding;
 mod varint;
+mod util;
 
 use std::thread;
 use std::sync::{Arc, mpsc};
-// use std::collections::HashMap;
 use rustc_hash::FxHashMap;
-use crate::{constants::Codec, constants::Posting};
+use crate::{constants::{Kind, Codec, EncodingInput, PostingData}};
 
 fn main() {
     let filename = "../data/dna/human_cleaned.txt".to_string();
@@ -40,10 +40,16 @@ fn benchmark(encoder: Codec, word_freq: Arc<FxHashMap<u32, Vec<u32>>>) -> u64{
         Codec::Hybrid => ("hybrid_encoding".to_string(), "delta_encoding_postings.bin")
     };
 
+    let input = EncodingInput {
+        kind: Kind::DNA,
+        codec: encoder,
+        kmer_size: Some(5)
+    };
+
     let start_time = std::time::Instant::now();
-    let (sender, receiver) = mpsc::sync_channel::<Vec<u8>>(8);
+    let (sender, receiver) = mpsc::sync_channel::<PostingData>(8);
     let producer = thread::spawn(move || {
-        byte_packing::byte_pack_encode(&encoder, &sender, word_freq);
+        byte_packing::byte_pack_encode(input, &sender, word_freq);
     });
 
     writer::writer(&filename, &receiver).unwrap();
