@@ -25,7 +25,6 @@ pub enum Kind {
 }
 
 pub struct Posting {
-    pub word: String,                // used for the dict.bin file
     pub n: u32,                      // length of the frequency vec (for the word)
     pub base: u32,                   // the literal word index like the frist occrance
     pub payload: Vec<u8>,            // the bytes for the delta encoding

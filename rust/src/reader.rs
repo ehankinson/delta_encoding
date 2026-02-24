@@ -2,6 +2,7 @@ use crate::constants::DNA_BASES;
 use std::fs::File;
 use std::io::{BufReader, Read, Result};
 use rustc_hash::FxHashMap;
+use crate::util::get_digit;
 
 // pub fn read_book_content(filename: String) -> Result<HashMap<String, Vec<u32>>> {
 //     let file = File::open(filename)?;
@@ -93,15 +94,4 @@ fn build_power_cache(base: u32, k: u32) -> Vec<u32> {
     }
 
     power_table
-}
-
-fn get_digit(byte: u8) -> u32 {
-    match byte {
-        b'A' => 0,
-        b'C' => 1,
-        b'G' => 2,
-        b'T' => 3,
-        b'N' => 4,
-        _ => 0,
-    }
 }

@@ -1,4 +1,4 @@
-use crate::constants::{codec_to_bits, Codec, Posting, PostingData};
+use crate::constants::{codec_to_bits, Codec, PostingData};
 
 use std::fs::File;
 use std::io::{BufWriter, Result, Write};
