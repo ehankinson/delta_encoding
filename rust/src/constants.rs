@@ -21,7 +21,7 @@ pub fn codec_to_bits(codec: &Codec) -> u8 {
 pub enum Kind {
     DNA,
     BOOK,
-    HTML
+    HTML,
 }
 
 pub struct Posting {
@@ -33,8 +33,7 @@ pub struct Posting {
 
 pub struct PostingData {
     pub term_id: u32,
-    pub term_bytes: Vec<u8>,
-    pub payload: Vec<u8>
+    pub payload: Vec<u8>,
 }
 
 pub struct EncodingInput {

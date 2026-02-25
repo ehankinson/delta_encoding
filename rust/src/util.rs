@@ -1,6 +1,5 @@
-use crate::constants::{DNA_BASES, EncodingInput, Posting};
+use crate::constants::{EncodingInput, Posting, DNA_BASES};
 use crate::writer::write_header;
-
 
 pub fn build_payload(input: &EncodingInput, data: Posting, payload: &mut Vec<u8>) {
     let has_exception = data.exceptions.is_some();

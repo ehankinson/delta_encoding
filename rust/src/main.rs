@@ -11,12 +11,13 @@ use crate::{constants::{Kind, Codec, EncodingInput, PostingData}};
 
 fn main() {
     let kmer_size = 5;
-    let filename = "../data/dna/human_cleaned.txt".to_string();
-    // let filename = "../data/books/frankenstein_or_the_modern_prometheus_by_mary_wollstonecraft_shelley_41445.txt".to_string();
-    // let words = reader::read_book_content(filename).expect("failed to read input file");
+    // let filename = "../data/dna/human_cleaned.txt".to_string();
+    let filename = "../data/books/the_complete_works_of_william_shakespeare_by_william_shakespeare.txt".to_string();
     let start_time = std::time::Instant::now();
-    let words = reader::read_dna_content(filename, kmer_size).expect("failed to read input file");
-    let words = Arc::new(words);
+
+    let (word_freq, terms) = reader::read_book_content(filename).expect("failed to read input file");
+    // let (word_freq, terms) = reader::read_dna_content(filename, kmer_size).expect("failed to read input file");
+    let words = Arc::new(word_freq);
     let end_time = std::time::Instant::now();
     let duration = end_time.duration_since(start_time);
     println!("Time for reading the file took: {:#?}", duration);
@@ -26,21 +27,21 @@ fn main() {
         codec: Codec::BytePack,
         kmer_size: Some(kmer_size)
     };
-    let byte_pack_size = benchmark(byte_pack_input, Arc::clone(&words));
+    let byte_pack_size = benchmark(byte_pack_input, Arc::clone(&words), &terms);
 
     let delta_encoding_input = EncodingInput {
         kind: Kind::DNA,
         codec: Codec::None,
         kmer_size: Some(kmer_size)
     };
-    let delta_encoding_size = benchmark(delta_encoding_input, Arc::clone(&words));
+    let delta_encoding_size = benchmark(delta_encoding_input, Arc::clone(&words), &terms);
 
     let varint_encoding_input = EncodingInput {
         kind: Kind::DNA,
         codec: Codec::VarInt,
         kmer_size: Some(kmer_size)
     };
-    let varint_encoding_size = benchmark(varint_encoding_input, Arc::clone(&words));
+    let varint_encoding_size = benchmark(varint_encoding_input, Arc::clone(&words), &terms);
 
     println!("The compression ratio is: {:?}", delta_encoding_size as f64 / byte_pack_size as f64);
     println!("The compression ratio for varint is: {:?}", delta_encoding_size as f64 / varint_encoding_size as f64);
@@ -48,7 +49,7 @@ fn main() {
 }
 
 
-fn benchmark(input: EncodingInput, word_freq: Arc<FxHashMap<u32, Vec<u32>>>) -> u64{
+fn benchmark(input: EncodingInput, word_freq: Arc<FxHashMap<u32, Vec<u32>>>, terms: &Vec<Vec<u8>>) -> u64{
     //Could do it all in one match, but i dont want string creation part of the bench marking
     let (filename, path) = match input.codec {
         Codec::None => ("delta_encoding".to_string(), "delta_encoding_postings.bin"),
@@ -58,12 +59,12 @@ fn benchmark(input: EncodingInput, word_freq: Arc<FxHashMap<u32, Vec<u32>>>) -> 
     };
 
     let start_time = std::time::Instant::now();
-    let (sender, receiver) = mpsc::sync_channel::<PostingData>(8);
+    let (sender, receiver) = mpsc::sync_channel::<PostingData>(256);
     let producer = thread::spawn(move || {
         encoder::encode(input, &sender, word_freq)
     });
 
-    writer::writer(&filename, &receiver).unwrap();
+    writer::writer(&filename, &receiver, &terms).unwrap();
 
     producer.join().unwrap();
 
