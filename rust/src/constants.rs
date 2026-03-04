@@ -1,6 +1,7 @@
 pub const DNA_BASES: u32 = 5;
 
 #[repr(u8)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum Codec {
     None,
     VarInt,

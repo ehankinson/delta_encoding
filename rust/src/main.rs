@@ -3,6 +3,7 @@ mod writer;
 mod constants;
 mod util;
 mod encoder;
+mod benchmark;
 
 use std::thread;
 use std::sync::{Arc, mpsc};
@@ -24,26 +25,30 @@ fn main() {
     println!("Number of terms: {}", terms.len());
     println!("Average term length: {:.2}", terms.iter().map(|t| t.len()).sum::<usize>() as f64 / terms.len() as f64);
 
+    // benchmark::run_codec_benchmark(Codec::BytePack, words.clone());
+    // println!("{}", "-".repeat(54));
+    // benchmark::run_codec_benchmark(Codec::VarInt, words.clone());
+
     let byte_pack_input = EncodingInput {
         kind: Kind::DNA,
         codec: Codec::BytePack,
         kmer_size: Some(kmer_size)
     };
-    let byte_pack_size = benchmark(byte_pack_input, Arc::clone(&words), &terms);
+    let byte_pack_size = run_encoding_pipeline_benchmark(byte_pack_input, Arc::clone(&words), &terms);
 
     let delta_encoding_input = EncodingInput {
         kind: Kind::DNA,
         codec: Codec::None,
         kmer_size: Some(kmer_size)
     };
-    let delta_encoding_size = benchmark(delta_encoding_input, Arc::clone(&words), &terms);
+    let delta_encoding_size = run_encoding_pipeline_benchmark(delta_encoding_input, Arc::clone(&words), &terms);
 
     let varint_encoding_input = EncodingInput {
         kind: Kind::DNA,
         codec: Codec::VarInt,
         kmer_size: Some(kmer_size)
     };
-    let varint_encoding_size = benchmark(varint_encoding_input, Arc::clone(&words), &terms);
+    let varint_encoding_size = run_encoding_pipeline_benchmark(varint_encoding_input, Arc::clone(&words), &terms);
 
     println!("The compression ratio is: {:?}", delta_encoding_size as f64 / byte_pack_size as f64);
     println!("The compression ratio for varint is: {:?}", delta_encoding_size as f64 / varint_encoding_size as f64);
@@ -51,7 +56,11 @@ fn main() {
 }
 
 
-fn benchmark(input: EncodingInput, word_freq: Arc<FxHashMap<u32, Vec<u32>>>, terms: &Vec<Vec<u8>>) -> u64{
+fn run_encoding_pipeline_benchmark(
+    input: EncodingInput,
+    word_freq: Arc<FxHashMap<u32, Vec<u32>>>,
+    terms: &[Vec<u8>],
+) -> u64 {
     //Could do it all in one match, but i dont want string creation part of the bench marking
     let (filename, path) = match input.codec {
         Codec::None => ("delta_encoding".to_string(), "delta_encoding_postings.bin"),
@@ -66,7 +75,7 @@ fn benchmark(input: EncodingInput, word_freq: Arc<FxHashMap<u32, Vec<u32>>>, ter
         encoder::encode(input, &sender, word_freq)
     });
 
-    writer::writer(&filename, &receiver, &terms).unwrap();
+    writer::writer(&filename, &receiver, terms).unwrap();
 
     producer.join().unwrap();
 

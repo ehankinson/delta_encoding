@@ -3,9 +3,8 @@ use std::mem::swap;
 use std::sync::mpsc::SyncSender;
 use std::sync::Arc;
 
-use crate::constants::{Codec, EncodingInput, Kind, Posting, PostingData};
+use crate::constants::{Codec, EncodingInput, Posting, PostingData};
 use crate::util::build_payload;
-use crate::util::decode_dna_kmer;
 
 pub fn encode(
     input: EncodingInput,
@@ -23,13 +22,13 @@ pub fn encode(
         exceptions.clear();
 
         match input.codec {
-            Codec::None => delta_encode(&freq, &mut byte_data),
-            Codec::VarInt => varint_encode(&freq, &mut byte_data),
-            Codec::BytePack => byte_pack_encode(&freq, &mut byte_data, &mut exceptions),
+            Codec::None => delta_encode(freq, &mut byte_data),
+            Codec::VarInt => varint_encode(freq, &mut byte_data),
+            Codec::BytePack => byte_pack_encode(freq, &mut byte_data, &mut exceptions),
             _ => panic!("Invalid codec"),
         }
 
-        let has_exception = exceptions.len() > 0;
+        let has_exception = !exceptions.is_empty();
 
         let mut output_byte_data = Vec::new();
         swap(&mut byte_data, &mut output_byte_data);
@@ -41,7 +40,7 @@ pub fn encode(
 
         let posting_data = Posting {
             n: freq.len() as u32,
-            base: freq[0] as u32,
+            base: freq[0],
             payload: output_byte_data,
             exceptions: if has_exception {
                 Some(output_exceptions)
@@ -64,7 +63,7 @@ pub fn encode(
     }
 }
 
-fn byte_pack_encode(freq: &Vec<u32>, byte_data: &mut Vec<u8>, exceptions: &mut Vec<u8>) {
+fn byte_pack_encode(freq: &[u32], byte_data: &mut Vec<u8>, exceptions: &mut Vec<u8>) {
     for &value in &freq[1..] {
         if value <= 255 {
             byte_data.push(value as u8);
@@ -74,9 +73,7 @@ fn byte_pack_encode(freq: &Vec<u32>, byte_data: &mut Vec<u8>, exceptions: &mut V
                 let v = value as u16;
                 exceptions.extend_from_slice(&v.to_le_bytes());
             }
-            // with DNA there are indexs that are over a u16 size, so I've added a
-            // new sentinal value in the exceptions (0x0000) to indicate hey, read the next 4 bytes (u32)
-            // since it's so large, otherwise we continue with the next 2 bytes (u16)
+            // For large values, store sentinel (0x0000) + 4-byte value.
             else {
                 exceptions.extend_from_slice(&(0 as u16).to_le_bytes());
                 exceptions.extend_from_slice(&value.to_le_bytes());
@@ -85,13 +82,13 @@ fn byte_pack_encode(freq: &Vec<u32>, byte_data: &mut Vec<u8>, exceptions: &mut V
     }
 }
 
-fn delta_encode(freq: &Vec<u32>, byte_data: &mut Vec<u8>) {
+fn delta_encode(freq: &[u32], byte_data: &mut Vec<u8>) {
     for &value in &freq[1..] {
         byte_data.extend_from_slice(&value.to_le_bytes());
     }
 }
 
-fn varint_encode(freq: &Vec<u32>, byte_data: &mut Vec<u8>) {
+fn varint_encode(freq: &[u32], byte_data: &mut Vec<u8>) {
     for &value in freq.iter().skip(1) {
         let mut temp = value;
         while temp >= 0x80 {
@@ -99,5 +96,14 @@ fn varint_encode(freq: &Vec<u32>, byte_data: &mut Vec<u8>) {
             temp >>= 7;
         }
         byte_data.push(temp as u8);
+    }
+}
+
+pub(crate) fn encode_posting(codec: Codec, freq: &[u32], byte_data: &mut Vec<u8>, exceptions: &mut Vec<u8>) {
+    match codec {
+        Codec::None => delta_encode(freq, byte_data),
+        Codec::VarInt => varint_encode(freq, byte_data),
+        Codec::BytePack => byte_pack_encode(freq, byte_data, exceptions),
+        _ => panic!("Invalid codec"),
     }
 }
