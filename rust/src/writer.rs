@@ -25,7 +25,7 @@ pub fn write_header(codec: &Codec, has_exception: bool, has_base: bool) -> u8 {
 fn build_dict(chunk: &PostingData, offset: u32, term_bytes: &[u8]) -> Vec<u8> {
     let mut dict = Vec::new();
     dict.extend_from_slice(&chunk.term_id.to_le_bytes());
-    dict.extend_from_slice(&term_bytes.len().to_le_bytes());
+    dict.extend_from_slice(&(term_bytes.len() as u32).to_le_bytes());
     dict.extend_from_slice(term_bytes);
     dict.extend_from_slice(&offset.to_le_bytes());
 
@@ -37,8 +37,8 @@ pub fn writer(
     receiver: &Receiver<PostingData>,
     terms: &[Vec<u8>],
 ) -> Result<()> {
-    let dict_file = File::create(format!("{}_dict.bin", filename)).unwrap();
-    let postings_file = File::create(format!("{}_postings.bin", filename)).unwrap();
+    let dict_file = File::create(format!("{}_dict.bin", filename))?;
+    let postings_file = File::create(format!("{}_postings.bin", filename))?;
 
     let mut dict_writer = BufWriter::new(dict_file);
     let mut postings_writer = BufWriter::new(postings_file);
@@ -49,10 +49,12 @@ pub fn writer(
         let term_bytes = &terms[chunk.term_id as usize];
         let dict = build_dict(&chunk, offset, term_bytes);
         dict_writer.write_all(&dict)?;
+        
         postings_writer.write_all(&chunk.payload)?;
         offset += chunk.payload.len() as u32;
     }
 
+    dict_writer.flush()?;
     postings_writer.flush()?;
 
     Ok(())

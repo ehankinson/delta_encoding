@@ -16,11 +16,11 @@ pub fn build_payload(
     payload.extend_from_slice(&n.to_le_bytes());
     payload.extend_from_slice(&base.to_le_bytes());
 
-    payload.extend_from_slice(&encoded.len().to_le_bytes());
+    payload.extend_from_slice(&(encoded.len() as u32).to_le_bytes());
     payload.extend_from_slice(encoded);
 
     if has_exception {
-        payload.extend_from_slice(&exceptions.len().to_le_bytes());
+        payload.extend_from_slice(&(exceptions.len() as u32).to_le_bytes());
         payload.extend_from_slice(exceptions);
     }
 }
