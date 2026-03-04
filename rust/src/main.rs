@@ -21,6 +21,8 @@ fn main() {
     let end_time = std::time::Instant::now();
     let duration = end_time.duration_since(start_time);
     println!("Time for reading the file took: {:#?}", duration);
+    println!("Number of terms: {}", terms.len());
+    println!("Average term length: {:.2}", terms.iter().map(|t| t.len()).sum::<usize>() as f64 / terms.len() as f64);
 
     let byte_pack_input = EncodingInput {
         kind: Kind::DNA,

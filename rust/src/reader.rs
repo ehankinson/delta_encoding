@@ -12,39 +12,45 @@ pub fn read_book_content(filename: String) -> Result<(FxHashMap<u32, Vec<u32>>, 
     let mut term_id = 0;
     let mut index = 0 as u32;
     let mut temp: FxHashMap<u32, (u32, Vec<u32>)> = FxHashMap::default();
-    let mut term_to_id: FxHashMap<String, u32> = FxHashMap::default();
+    let mut term_to_id: FxHashMap<Vec<u8>, u32> = FxHashMap::default();
     let mut terms = Vec::new();
 
-    for line in reader.lines() {
+    let mut in_word = false;
+    let mut word = Vec::with_capacity(32);
+
+    for line in reader.split(b'\n') {
         let line = line?;
 
-        for word in line.split_whitespace() {
-            let clean_word: String = word
-                .chars()
-                .filter(|c| c.is_alphanumeric())
-                .flat_map(|c| c.to_lowercase())
-                .collect();
-
-            if clean_word.is_empty() {
-                continue;
+        for &byte in &line {
+            if byte.is_ascii_alphanumeric() { 
+                in_word = true; 
+                word.push(byte.to_ascii_lowercase());
             }
-
-            if !term_to_id.contains_key(&clean_word) {
-                let term_bytes = Vec::from(clean_word.as_bytes());
-                term_to_id.insert(clean_word, term_id);
-                terms.push(term_bytes);
-                temp.insert(term_id, (index, vec![index]));
-                term_id += 1;
-            } else {
-                let current_id = term_to_id.get(&clean_word).unwrap();
-                if let Some((last_index, indices)) = temp.get_mut(current_id) {
-                    indices.push(index - *last_index);
-                    *last_index = index;
-                }
+            else if in_word {
+                in_word = false;
+                push_word(
+                    &mut index,
+                    &mut term_id,
+                    &mut word,
+                    &mut terms,
+                    &mut term_to_id,
+                    &mut temp,
+                );
+                word.clear();
+                index += 1;
             }
-
-            index += 1;
         }
+    }
+
+    if in_word {
+        push_word(
+            &mut index,
+            &mut term_id,
+            &mut word,
+            &mut terms,
+            &mut term_to_id,
+            &mut temp,
+        );
     }
 
     let final_map: FxHashMap<u32, Vec<u32>> = temp
@@ -121,4 +127,30 @@ pub fn read_dna_content(
         .collect();
 
     Ok((final_map, terms))
+}
+
+
+fn push_word(
+    index: &mut u32,
+    term_id: &mut u32,
+    word: &mut Vec<u8>,
+    terms: &mut Vec<Vec<u8>>,
+    term_to_id: &mut FxHashMap<Vec<u8>, u32>,
+    temp: &mut FxHashMap<u32, (u32, Vec<u32>)>,
+) {
+    if let Some(current_id) = term_to_id.get(word.as_slice()) {
+        if let Some((last_index, indices)) = temp.get_mut(current_id) {
+            indices.push(*index - *last_index);
+            *last_index = *index;
+        }
+    }
+    else {
+        let owned = word.clone();
+
+        term_to_id.insert(owned.clone(), *term_id);
+        terms.push(owned);
+
+        temp.insert(*term_id, (*index, vec![*index]));
+        *term_id += 1;
+    }
 }
