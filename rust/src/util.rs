@@ -1,21 +1,27 @@
-use crate::constants::{EncodingInput, Posting, DNA_BASES};
+use crate::constants::{EncodingInput, DNA_BASES};
 use crate::writer::write_header;
 
-pub fn build_payload(input: &EncodingInput, data: Posting, payload: &mut Vec<u8>) {
-    let has_exception = data.exceptions.is_some();
+pub fn build_payload(
+    input: &EncodingInput,
+    n: u32,
+    base: u32,
+    encoded: &[u8],
+    exceptions: &[u8],
+    payload: &mut Vec<u8>,
+) {
+    let has_exception = !exceptions.is_empty();
 
     let header = write_header(&input.codec, has_exception, true);
     payload.push(header);
-    payload.extend_from_slice(&data.n.to_le_bytes());
-    payload.extend_from_slice(&data.base.to_le_bytes());
+    payload.extend_from_slice(&n.to_le_bytes());
+    payload.extend_from_slice(&base.to_le_bytes());
 
-    payload.extend_from_slice(&data.payload.len().to_le_bytes());
-    payload.extend_from_slice(&data.payload);
+    payload.extend_from_slice(&encoded.len().to_le_bytes());
+    payload.extend_from_slice(encoded);
 
     if has_exception {
-        let ex = data.exceptions.unwrap();
-        payload.extend_from_slice(&ex.len().to_le_bytes());
-        payload.extend_from_slice(&ex);
+        payload.extend_from_slice(&exceptions.len().to_le_bytes());
+        payload.extend_from_slice(exceptions);
     }
 }
 

@@ -1,62 +1,68 @@
 use rustc_hash::FxHashMap;
-use std::mem::swap;
 use std::sync::mpsc::SyncSender;
 use std::sync::Arc;
 
-use crate::constants::{Codec, EncodingInput, Posting, PostingData};
+use crate::constants::{Codec, EncodingInput, PostingData};
 use crate::util::build_payload;
+
+pub(crate) fn encode_posting(codec: Codec, freq: &[u32], byte_data: &mut Vec<u8>, exceptions: &mut Vec<u8>) {
+    match codec {
+        Codec::None => delta_encode(freq, byte_data),
+        Codec::VarInt => varint_encode(freq, byte_data),
+        Codec::BytePack => byte_pack_encode(freq, byte_data, exceptions),
+        _ => panic!("Invalid codec"),
+    }
+}
 
 pub fn encode(
     input: EncodingInput,
     sender: &SyncSender<PostingData>,
     word_freq: Arc<FxHashMap<u32, Vec<u32>>>,
 ) {
-    let size = 8 * 1024 * 1024; // 8MB buffer
-    let mut payload = Vec::with_capacity(size);
     let mut byte_data = Vec::with_capacity(1024);
     let mut exceptions = Vec::with_capacity(128);
 
     for (term_id, freq) in word_freq.iter() {
-        payload.clear();
+        if freq.is_empty() {
+            continue;
+        }
+
         byte_data.clear();
         exceptions.clear();
 
         match input.codec {
-            Codec::None => delta_encode(freq, &mut byte_data),
-            Codec::VarInt => varint_encode(freq, &mut byte_data),
-            Codec::BytePack => byte_pack_encode(freq, &mut byte_data, &mut exceptions),
+            Codec::None => byte_data.reserve((freq.len().saturating_sub(1)) * 4),
+            Codec::VarInt => byte_data.reserve(freq.len().saturating_sub(1)),
+            Codec::BytePack => {
+                byte_data.reserve(freq.len().saturating_sub(1));
+                exceptions.reserve(freq.len().saturating_sub(1) / 8);
+            }
             _ => panic!("Invalid codec"),
         }
 
+        encode_posting(input.codec, freq, &mut byte_data, &mut exceptions);
+
         let has_exception = !exceptions.is_empty();
-
-        let mut output_byte_data = Vec::new();
-        swap(&mut byte_data, &mut output_byte_data);
-
-        let mut output_exceptions = Vec::new();
-        if has_exception {
-            swap(&mut exceptions, &mut output_exceptions);
-        }
-
-        let posting_data = Posting {
-            n: freq.len() as u32,
-            base: freq[0],
-            payload: output_byte_data,
-            exceptions: if has_exception {
-                Some(output_exceptions)
-            } else {
-                None
-            },
-        };
-
-        build_payload(&input, posting_data, &mut payload);
-
-        let mut output = Vec::new();
-        swap(&mut output, &mut payload);
+        let mut payload = Vec::with_capacity(
+            1 + 4 + 4 + std::mem::size_of::<usize>() + byte_data.len()
+                + if has_exception {
+                    std::mem::size_of::<usize>() + exceptions.len()
+                } else {
+                    0
+                },
+        );
+        build_payload(
+            &input,
+            freq.len() as u32,
+            freq[0],
+            &byte_data,
+            &exceptions,
+            &mut payload,
+        );
 
         let data = PostingData {
             term_id: *term_id,
-            payload: output,
+            payload,
         };
 
         sender.send(data).unwrap();
@@ -96,14 +102,5 @@ fn varint_encode(freq: &[u32], byte_data: &mut Vec<u8>) {
             temp >>= 7;
         }
         byte_data.push(temp as u8);
-    }
-}
-
-pub(crate) fn encode_posting(codec: Codec, freq: &[u32], byte_data: &mut Vec<u8>, exceptions: &mut Vec<u8>) {
-    match codec {
-        Codec::None => delta_encode(freq, byte_data),
-        Codec::VarInt => varint_encode(freq, byte_data),
-        Codec::BytePack => byte_pack_encode(freq, byte_data, exceptions),
-        _ => panic!("Invalid codec"),
     }
 }
