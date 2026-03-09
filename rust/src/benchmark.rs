@@ -1,8 +1,108 @@
 use rustc_hash::FxHashMap;
+use std::cmp;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::constants::Codec;
 use crate::encoder::encode_posting;
+pub fn hybrid_stim(word_freq: Arc<FxHashMap<u32, Vec<u32>>>){
+    let mut temp: HashMap<i32, i32> = HashMap::new();
+    let mut ethan_map: HashMap<i32, Vec<f64>> = HashMap::new();
+    
+    let mut b_payload = Vec::new();
+    let mut b_exceptions = Vec::new();
+    let mut v_payload = Vec::new();
+
+    let mut over = 0;
+    let mut under = 0;
+
+    let mut varint_win = 0;
+    let mut bytepack_win = 0;
+    for freq in word_freq.values() {
+        b_payload.clear();
+        b_exceptions.clear();
+        v_payload.clear();
+        encode_posting(Codec::BytePack, freq, &mut b_payload, &mut b_exceptions);
+        encode_posting(Codec::VarInt, freq, &mut v_payload, &mut Vec::new());
+        let mut count = 0;
+        for entry in freq{
+            if (*entry <= 255){
+                count += 1;
+            }
+        }
+        if (count == 0){
+            over += 1
+        } else{
+            under += 1;
+            let percentage: f64 = count as f64 / freq.len() as f64;
+            let mut bucket_key = (percentage * 10.0) as i32;
+            *temp.entry(bucket_key).or_insert(0) += 1;
+            println!("The percentage of non 0 here is {:?} the bytepack len {:?} and varint len {:?}", percentage, (b_payload.len() + b_exceptions.len()), v_payload.len())
+            
+        }
+        if ((b_payload.len() + b_exceptions.len()) < v_payload.len()){
+            bytepack_win += 1;
+        } else {
+            varint_win += 1;
+        }
+                // 1. Store the lengths in variables to make the code easier to read
+        let b_len = b_payload.len() + b_exceptions.len();
+        let v_len = v_payload.len();
+
+        // 2. Use abs_diff()! It safely finds the absolute difference as a usize
+        let diff = b_len.abs_diff(v_len);
+
+        // 3. Calculate the percentage, casting directly to f64
+        let pct = diff as f64 / cmp::max(b_len, v_len) as f64;
+        let percentage = count as f64 / freq.len() as f64;
+        if (pct <= 0.1) {
+    
+            // 1. entry(1) finds the key or gets ready to make it
+            // 2. or_insert_with(Vec::new) creates a new Vec if it was missing
+            // 3. It returns a MUTABLE reference, allowing you to instantly .push()
+            ethan_map.entry(1).or_insert_with(Vec::new).push(percentage);
+        } else if ((b_payload.len() + b_exceptions.len()) < v_payload.len()){
+            ethan_map.entry(0).or_insert_with(Vec::new).push(percentage);
+        } else {
+            ethan_map.entry(2).or_insert_with(Vec::new).push(percentage);
+        }
+        // println!("The total count was {:?} and percentage of thing is {:?}", count, (((count as f64 / freq.len() as f64))))
+    }
+    println!("{:?}", temp);
+    println!("--- Ethan Map Stats ---");
+    // Loop through each key (0, 1, 2) and its vector of percentages
+    for (key, vec) in &ethan_map {
+        let count = vec.len();
+        
+        // Calculate the sum of all f64s in the vector. 
+        // We have to explicitly tell Rust the sum is an f64.
+        let sum: f64 = vec.iter().sum();
+        
+        // Avoid dividing by zero (even though your vectors shouldn't be empty)
+        let average = if count > 0 {
+            sum / count as f64
+        } else {
+            0.0
+        };
+
+        // Map the keys to human-readable names for your output
+        let category_name = match key {
+            0 => "BytePack Win",
+            1 => "Tie / Close (< 10% diff)",
+            2 => "VarInt Win",
+            _ => "Unknown",
+        };
+
+        println!(
+            "[{}] Count: {}, Average non-zero percentage: {:.4}", 
+            category_name, count, average
+        );
+    }
+    println!("Total number of words over 255 {:?} and under 255 {:?}", over, under);
+    println!("Bytepack win {:?} and varint win {:?}", bytepack_win, varint_win);
+}
+
+
 
 pub fn run_codec_benchmark(input: Codec, word_freq: Arc<FxHashMap<u32, Vec<u32>>>) {
     let total_postings_list = word_freq.len();
