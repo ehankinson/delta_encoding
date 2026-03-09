@@ -5,11 +5,17 @@ use std::sync::Arc;
 use crate::constants::{Codec, EncodingInput, PostingData};
 use crate::util::build_payload;
 
-pub(crate) fn encode_posting(codec: Codec, freq: &[u32], byte_data: &mut Vec<u8>, exceptions: &mut Vec<u8>) {
+pub(crate) fn encode_posting(
+    codec: Codec,
+    freq: &[u32],
+    byte_data: &mut Vec<u8>,
+    exceptions: &mut Vec<u8>,
+) {
     match codec {
         Codec::None => delta_encode(freq, byte_data),
         Codec::VarInt => varint_encode(freq, byte_data),
         Codec::BytePack => byte_pack_encode(freq, byte_data, exceptions),
+        Codec::Hybrid => hybrid_encode(freq, byte_data, exceptions),
         _ => panic!("Invalid codec"),
     }
 }
@@ -37,6 +43,10 @@ pub fn encode(
                 byte_data.reserve(freq.len().saturating_sub(1));
                 exceptions.reserve(freq.len().saturating_sub(1) / 8);
             }
+            Codec::Hybrid => {
+                byte_data.reserve(freq.len().saturating_sub(1));
+                exceptions.reserve(freq.len().saturating_sub(1) / 8);
+            }
             _ => panic!("Invalid codec"),
         }
 
@@ -44,7 +54,10 @@ pub fn encode(
 
         let has_exception = !exceptions.is_empty();
         let mut payload = Vec::with_capacity(
-            1 + 4 + 4 + std::mem::size_of::<usize>() + byte_data.len()
+            1 + 4
+                + 4
+                + std::mem::size_of::<usize>()
+                + byte_data.len()
                 + if has_exception {
                     std::mem::size_of::<usize>() + exceptions.len()
                 } else {
@@ -102,5 +115,16 @@ fn varint_encode(freq: &[u32], byte_data: &mut Vec<u8>) {
             temp >>= 7;
         }
         byte_data.push(temp as u8);
+    }
+}
+
+fn hybrid_encode(freq: &[u32], byte_data: &mut Vec<u8>, exceptions: &mut Vec<u8>) {
+    let count = freq.iter().skip(1).filter(|&x| *x <= 255).count() as f32;
+    let pct = count / (freq.len() - 1) as f32;
+
+    if pct > 0.875 {
+        byte_pack_encode(freq, byte_data, exceptions);
+    } else {
+        varint_encode(freq, byte_data);
     }
 }

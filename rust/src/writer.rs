@@ -32,11 +32,7 @@ fn build_dict(chunk: &PostingData, offset: u32, term_bytes: &[u8]) -> Vec<u8> {
     dict
 }
 
-pub fn writer(
-    filename: &str,
-    receiver: &Receiver<PostingData>,
-    terms: &[Vec<u8>],
-) -> Result<()> {
+pub fn writer(filename: &str, receiver: &Receiver<PostingData>, terms: &[Vec<u8>]) -> Result<()> {
     let dict_file = File::create(format!("{}_dict.bin", filename))?;
     let postings_file = File::create(format!("{}_postings.bin", filename))?;
 
@@ -49,7 +45,7 @@ pub fn writer(
         let term_bytes = &terms[chunk.term_id as usize];
         let dict = build_dict(&chunk, offset, term_bytes);
         dict_writer.write_all(&dict)?;
-        
+
         postings_writer.write_all(&chunk.payload)?;
         offset += chunk.payload.len() as u32;
     }

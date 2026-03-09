@@ -22,37 +22,49 @@ fn main() {
     let words = Arc::new(word_freq);
     let end_time = std::time::Instant::now();
     let duration = end_time.duration_since(start_time);
-    println!("Time for reading the file took: {:#?}", duration);
-    println!("Number of terms: {}", terms.len());
-    println!("Average term length: {:.2}", terms.iter().map(|t| t.len()).sum::<usize>() as f64 / terms.len() as f64);
-    hybrid_stim(Arc::clone(&words));
+    // println!("Time for reading the file took: {:#?}", duration);
+    // println!("Number of terms: {}", terms.len());
+    // println!("Average term length: {:.2}", terms.iter().map(|t| t.len()).sum::<usize>() as f64 / terms.len() as f64);
+    // hybrid_stim(Arc::clone(&words));
     // benchmark::run_codec_benchmark(Codec::BytePack, words.clone());
     // println!("{}", "-".repeat(54));
     // benchmark::run_codec_benchmark(Codec::VarInt, words.clone());
 
-    // let byte_pack_input = EncodingInput {
-    //     kind: Kind::DNA,
-    //     codec: Codec::BytePack,
-    //     kmer_size: Some(kmer_size)
-    // };
-    // let byte_pack_size = run_encoding_pipeline_benchmark(byte_pack_input, Arc::clone(&words), &terms);
+    let byte_pack_input = EncodingInput {
+        kind: Kind::DNA,
+        codec: Codec::BytePack,
+        kmer_size: Some(kmer_size)
+    };
+    let byte_pack_size = run_encoding_pipeline_benchmark(byte_pack_input, Arc::clone(&words), &terms);
 
-    // let delta_encoding_input = EncodingInput {
-    //     kind: Kind::DNA,
-    //     codec: Codec::None,
-    //     kmer_size: Some(kmer_size)
-    // };
-    // let delta_encoding_size = run_encoding_pipeline_benchmark(delta_encoding_input, Arc::clone(&words), &terms);
+    let delta_encoding_input = EncodingInput {
+        kind: Kind::DNA,
+        codec: Codec::None,
+        kmer_size: Some(kmer_size)
+    };
+    let delta_encoding_size = run_encoding_pipeline_benchmark(delta_encoding_input, Arc::clone(&words), &terms);
 
-    // let varint_encoding_input = EncodingInput {
-    //     kind: Kind::DNA,
-    //     codec: Codec::VarInt,
-    //     kmer_size: Some(kmer_size)
-    // };
-    // let varint_encoding_size = run_encoding_pipeline_benchmark(varint_encoding_input, Arc::clone(&words), &terms);
+    let varint_encoding_input = EncodingInput {
+        kind: Kind::DNA,
+        codec: Codec::VarInt,
+        kmer_size: Some(kmer_size)
+    };
+    let varint_encoding_size = run_encoding_pipeline_benchmark(varint_encoding_input, Arc::clone(&words), &terms);
 
-    // println!("The compression ratio is: {:?}", delta_encoding_size as f64 / byte_pack_size as f64);
-    // println!("The compression ratio for varint is: {:?}", delta_encoding_size as f64 / varint_encoding_size as f64);
+    let hybrid_input = EncodingInput {
+        kind: Kind::DNA,
+        codec: Codec::Hybrid,
+        kmer_size: Some(kmer_size)
+    };
+    let hybrid_encoding_size = run_encoding_pipeline_benchmark(hybrid_input, Arc::clone(&words), &terms);
+
+    println!("The compression ratio for bytepacking is : {:?}", delta_encoding_size as f64 / byte_pack_size as f64);
+    println!("The compression ratio for varint is: {:?}", delta_encoding_size as f64 / varint_encoding_size as f64);
+    println!("The compression ratio for hybrid is: {:?}", delta_encoding_size as f64 / hybrid_encoding_size as f64);
+
+    let pct = (delta_encoding_size as f64 / hybrid_encoding_size as f64) / (delta_encoding_size as f64 / varint_encoding_size as f64);
+    println!("Hybrid beats varint by {:?} percentages", pct);
+
 
 }
 
@@ -67,7 +79,7 @@ fn run_encoding_pipeline_benchmark(
         Codec::None => ("delta_encoding".to_string(), "delta_encoding_postings.bin"),
         Codec::VarInt => ("varint_encoding".to_string(), "varint_encoding_postings.bin"),
         Codec::BytePack => ("byte_pack".to_string(),"byte_pack_postings.bin"),
-        Codec::Hybrid => ("hybrid_encoding".to_string(), "delta_encoding_postings.bin")
+        Codec::Hybrid => ("hybrid_encoding".to_string(), "hybrid_encoding_postings.bin")
     };
 
     let start_time = std::time::Instant::now();

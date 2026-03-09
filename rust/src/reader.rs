@@ -22,11 +22,10 @@ pub fn read_book_content(filename: String) -> Result<(FxHashMap<u32, Vec<u32>>, 
         let line = line?;
 
         for &byte in &line {
-            if byte.is_ascii_alphanumeric() { 
-                in_word = true; 
+            if byte.is_ascii_alphanumeric() {
+                in_word = true;
                 word.push(byte.to_ascii_lowercase());
-            }
-            else if in_word {
+            } else if in_word {
                 in_word = false;
                 push_word(
                     &mut index,
@@ -129,7 +128,6 @@ pub fn read_dna_content(
     Ok((final_map, terms))
 }
 
-
 fn push_word(
     index: &mut u32,
     term_id: &mut u32,
@@ -143,8 +141,7 @@ fn push_word(
             indices.push(*index - *last_index);
             *last_index = *index;
         }
-    }
-    else {
+    } else {
         let owned = word.clone();
 
         term_to_id.insert(owned.clone(), *term_id);
