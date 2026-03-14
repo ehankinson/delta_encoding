@@ -109,7 +109,7 @@ fn delta_encode(freq: &[u32], byte_data: &mut Vec<u8>) {
 }
 
 fn varint_encode(freq: &[u32], byte_data: &mut Vec<u8>) {
-    for &value in freq[1..] {
+    for &value in &freq[1..] {
         let mut temp = value;
         while temp >= 0x80 {
             byte_data.push(((temp & 0x7F) | 0x80) as u8);
