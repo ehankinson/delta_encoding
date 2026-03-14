@@ -12,7 +12,7 @@ use crate::benchmark::hybrid_stim;
 use crate::{constants::{Kind, Codec, EncodingInput, PostingData}};
 
 fn main() {
-    let kmer_size = 5;
+    let kmer_size = 3;
     // let filename = "../data/dna/human_cleaned.txt".to_string();
     let filename = "../data/books/the_complete_works_of_william_shakespeare_by_william_shakespeare.txt".to_string();
     let start_time = std::time::Instant::now();
@@ -29,7 +29,8 @@ fn main() {
     // benchmark::run_codec_benchmark(Codec::BytePack, words.clone());
     // println!("{}", "-".repeat(54));
     // benchmark::run_codec_benchmark(Codec::VarInt, words.clone());
-
+    // println!("{}", "-".repeat(54));
+    // benchmark::run_codec_benchmark(Codec::Hybrid, words.clone());
     let byte_pack_input = EncodingInput {
         kind: Kind::DNA,
         codec: Codec::BytePack,

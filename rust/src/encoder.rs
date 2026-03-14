@@ -5,6 +5,8 @@ use std::sync::Arc;
 use crate::constants::{Codec, EncodingInput, PostingData};
 use crate::util::build_payload;
 
+const P: u32 = 11;
+
 pub(crate) fn encode_posting(
     codec: Codec,
     freq: &[u32],
@@ -14,7 +16,7 @@ pub(crate) fn encode_posting(
     match codec {
         Codec::None => delta_encode(freq, byte_data),
         Codec::VarInt => varint_encode(freq, byte_data),
-        Codec::BytePack => byte_pack_encode(freq, byte_data, exceptions),
+        Codec::BytePack => p_for_delta_encode(freq, byte_data, exceptions),
         Codec::Hybrid => hybrid_encode(freq, byte_data, exceptions),
         _ => panic!("Invalid codec"),
     }
@@ -54,15 +56,14 @@ pub fn encode(
 
         let has_exception = !exceptions.is_empty();
         let mut payload = Vec::with_capacity(
-            1 + 4
-                + 4
-                + std::mem::size_of::<usize>()
-                + byte_data.len()
-                + if has_exception {
-                    std::mem::size_of::<usize>() + exceptions.len()
-                } else {
-                    0
-                },
+            1 + 4 + 4
+            + std::mem::size_of::<usize>()
+            + byte_data.len()
+            + if has_exception {
+                std::mem::size_of::<usize>() + exceptions.len()
+            } else {
+                0
+            },
         );
         build_payload(
             &input,
@@ -108,7 +109,7 @@ fn delta_encode(freq: &[u32], byte_data: &mut Vec<u8>) {
 }
 
 fn varint_encode(freq: &[u32], byte_data: &mut Vec<u8>) {
-    for &value in freq.iter().skip(1) {
+    for &value in freq[1..] {
         let mut temp = value;
         while temp >= 0x80 {
             byte_data.push(((temp & 0x7F) | 0x80) as u8);
@@ -126,5 +127,36 @@ fn hybrid_encode(freq: &[u32], byte_data: &mut Vec<u8>, exceptions: &mut Vec<u8>
         byte_pack_encode(freq, byte_data, exceptions);
     } else {
         varint_encode(freq, byte_data);
+    }
+}
+
+fn p_for_delta_encode(freq: &[u32], byte_data: &mut Vec<u8>, exceptions: &mut Vec<u8>) {
+    let max_value = (1 << P) - 1; // 2 ^ P - 1
+    let mut buffer: u64 = 0;
+    let mut bits_in_buffer: u32 = 0;
+
+    for &value in &freq[1..] {
+        if value > max_value {
+            if value <= u16::MAX as u32 {
+                let v = value as u16;
+                exceptions.extend_from_slice(&v.to_le_bytes());
+            } else {
+                exceptions.extend_from_slice(&(0 as u16).to_le_bytes());
+                exceptions.extend_from_slice(&value.to_be_bytes());
+            }
+        }
+
+        buffer |= (value as u64) << bits_in_buffer;
+        bits_in_buffer += P;
+
+        while bits_in_buffer >= 8 {
+            byte_data.push((buffer & 0xFF) as u8);
+            buffer >>= 8;
+            bits_in_buffer -= 8;
+        }
+    }
+
+    if bits_in_buffer > 0 {
+        byte_data.push(buffer as u8);
     }
 }

@@ -170,7 +170,8 @@ pub fn run_codec_benchmark(input: Codec, word_freq: Arc<FxHashMap<u32, Vec<u32>>
     let string_codec = match input {
         Codec::None => "delta_encoding",
         Codec::VarInt => "varint_encoding",
-        Codec::BytePack => "byte_pack",
+        Codec::BytePack => "byte_pack_encoding",
+        Codec::Hybrid => "hybrid_encoding",
         _ => panic!("Invalid codec"),
     };
 
