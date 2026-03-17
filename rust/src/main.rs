@@ -4,6 +4,7 @@ mod constants;
 mod util;
 mod encoder;
 mod benchmark;
+mod file_reader;
 
 use std::thread;
 use std::sync::{Arc, mpsc};
@@ -66,7 +67,36 @@ fn main() {
     let pct = (delta_encoding_size as f64 / hybrid_encoding_size as f64) / (delta_encoding_size as f64 / varint_encoding_size as f64);
     println!("Hybrid beats varint by {:?} percentages", pct);
 
+    println!("{}", "-".repeat(54));
+    println!("Testing the File Reader...");
+    
+    let formats = ["delta_encoding", "varint_encoding", "byte_pack", "hybrid_encoding"];
+    let search_term = "hamlet";
 
+    for format in formats.iter() {
+        let dict_filename = format!("{}_dict.bin", format);
+        let postings_filename = format!("{}_postings.bin", format);
+        
+        let dict_start_time = std::time::Instant::now();
+        match file_reader::load_dictionary(&dict_filename) {
+            Ok(dictionary) => {
+                let dict_duration = dict_start_time.elapsed();
+                println!("{} -> Loaded dictionary ({} terms) in {:?}", format, dictionary.len(), dict_duration);
+                
+                let lookup_start_time = std::time::Instant::now();
+                match file_reader::lookup_postings(search_term, &dictionary, &postings_filename) {
+                    Ok(Some((codec, _has_exception, posting))) => {
+                        let lookup_duration = lookup_start_time.elapsed();
+                        println!("  Found '{}' -> Codec: {} | Occurrences: {} | Payload: {} bytes | Time: {:?}", 
+                            search_term, codec as u8, posting.n, posting.payload.len(), lookup_duration);
+                    },
+                    Ok(None) => println!("  Term '{}' not found in dictionary.", search_term),
+                    Err(e) => println!("  Error reading postings for '{}': {}", search_term, e),
+                }
+            },
+            Err(e) => println!("Error loading dictionary {}: {}", dict_filename, e),
+        }
+    }
 }
 
 
